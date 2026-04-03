@@ -143,18 +143,38 @@ def classify_neighborhood(row):
             if lat_min <= lat <= lat_max and lng_min <= lng <= lng_max:
                 return hood_name
 
-    # Pass 3: PCH properties classified by longitude (east to west)
-    if "pacific coast hwy" in address and pd.notna(lng):
-        if lng > -118.700:
-            return "Carbon Beach"
-        elif lng > -118.780:
-            return "Malibu Road"
-        elif lng > -118.840:
-            return "Point Dume"
-        elif lng > -118.875:
-            return "Broad Beach"
-        else:
-            return "Western Malibu"
+    # Pass 3: PCH properties — use address number (more reliable than coordinates)
+    if "pacific coast hwy" in address:
+        import re
+        num_match = re.match(r"(\d+)", address)
+        if num_match:
+            addr_num = int(num_match.group(1))
+            if 21000 <= addr_num <= 22700:
+                return "Carbon Beach"
+            elif 22700 < addr_num <= 23800:
+                return "Malibu Colony"  # PCH near the Colony
+            elif 23800 < addr_num <= 26500:
+                return "Malibu Road"
+            elif 26500 < addr_num <= 28500:
+                return "Point Dume"
+            elif 28500 < addr_num <= 31500:
+                return "Broad Beach"
+            elif addr_num > 31500:
+                return "Western Malibu"
+            # addr_num < 21000 = eastern Malibu, not a defined neighborhood
+
+        # Fallback to longitude if no address number match
+        if pd.notna(lng):
+            if -118.670 < lng <= -118.630:
+                return "Carbon Beach"
+            elif -118.700 < lng <= -118.670:
+                return "Malibu Road"
+            elif -118.800 < lng <= -118.750:
+                return "Point Dume"
+            elif -118.860 < lng <= -118.800:
+                return "Broad Beach"
+            elif lng <= -118.860:
+                return "Western Malibu"
 
     return "Malibu (Other)"
 
@@ -245,6 +265,34 @@ def normalize(df):
                 "price_per_sqft", "hoa", "beds", "baths", "lat", "lng"]:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce")
+
+    # ── Data corrections for known bad records ─────────────────────────
+    # These are verified against Redfin/public records.
+    _corrections = {
+        "32300 Pacific Coast Hwy": {
+            # Redfin shows sqft=10 — actual property is 11,000 sqft Cape Cod estate
+            # on ~3 acres (130,680 sqft lot), 8 bed / 9.5 bath
+            "sqft": 11000,
+            "lot_size": 130680,
+            "beds": 8,
+            "baths": 9.5,
+        },
+        "31460 Broad Beach Rd": {
+            # sqft=1 in data — this is a land parcel, not a house
+            "sqft": float("nan"),
+        },
+    }
+    for addr, fixes in _corrections.items():
+        mask = df["address"].str.contains(addr, case=False, na=False)
+        for col, val in fixes.items():
+            if col in df.columns:
+                df.loc[mask, col] = val
+
+    # Flag land parcels: no sqft, no year_built, or extremely low sqft
+    df["is_land_parcel"] = (
+        (df["sqft"].isna() | (df["sqft"] < 500))
+        & (df["year_built"].isna())
+    )
 
     # Compute price_per_sqft where missing
     mask = df["price_per_sqft"].isna() & df["price"].notna() & df["sqft"].notna() & (df["sqft"] > 0)

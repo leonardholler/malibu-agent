@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Malibu Agent — Luxury Market Valuation</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0a0a0f;
+  --surface: #12121a;
+  --surface2: #1a1a26;
+  --border: #2a2a3a;
+  --text: #e8e8f0;
+  --text-muted: #8888a0;
+  --accent: #3b82f6;
+  --green: #22c55e;
+  --red: #ef4444;
+  --amber: #f59e0b;
+  --radius: 12px;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Header ─────────────────────────────────── */
+header {
+  padding: 40px 0 32px;
+  text-align: center;
+  border-bottom: 1px solid var(--border);
+}
+header h1 {
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.5px;
+}
+header p {
+  color: var(--text-muted);
+  font-size: 15px;
+  margin-top: 6px;
+}
+
+/* ── Container ──────────────────────────────── */
+.container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+
+/* ── Filters ────────────────────────────────── */
+.filters {
+  display: flex;
+  gap: 12px;
+  padding: 20px 0;
+  flex-wrap: wrap;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+}
+.filters select, .filters input {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.filters select:focus, .filters input:focus { border-color: var(--accent); }
+.filters select { cursor: pointer; }
+.filter-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.filter-group { display: flex; flex-direction: column; gap: 4px; }
+.sort-pills {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+.sort-pill {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  padding: 8px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.sort-pill:hover { border-color: var(--accent); color: var(--text); }
+.sort-pill.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+/* ── Stats Bar ──────────────────────────────── */
+.stats-bar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 16px;
+  padding: 24px 0;
+}
+.stat {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 20px;
+}
+.stat-label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.stat-value { font-size: 24px; font-weight: 600; margin-top: 4px; }
+.stat-value.green { color: var(--green); }
+.stat-value.red { color: var(--red); }
+
+/* ── Listings Grid ──────────────────────────── */
+.listings { display: flex; flex-direction: column; gap: 2px; padding-bottom: 60px; }
+
+.listing-card {
+  display: grid;
+  grid-template-columns: 1fr 200px 200px 160px;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 24px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.listing-card:hover {
+  background: var(--surface2);
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.listing-info h3 {
+  font-size: 15px;
+  font-weight: 500;
+}
+.listing-info .meta {
+  color: var(--text-muted);
+  font-size: 13px;
+  margin-top: 2px;
+}
+.listing-hood {
+  display: inline-block;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 500;
+  margin-top: 4px;
+}
+.tag {
+  display: inline-block;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-top: 4px;
+}
+.tag-ocean { background: rgba(59,130,246,0.15); color: #60a5fa; }
+.tag-mtn { background: rgba(168,162,158,0.15); color: #a8a29e; }
+.tag-land { background: rgba(245,158,11,0.15); color: #f59e0b; }
+.tag-low { background: rgba(239,68,68,0.12); color: #f87171; }
+
+.listing-prices {
+  text-align: right;
+}
+.listed-price { font-size: 18px; font-weight: 600; }
+.est-value { font-size: 14px; color: var(--text-muted); margin-top: 2px; }
+
+.listing-assessment { text-align: center; }
+.badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+.badge.underpriced { background: rgba(34,197,94,0.15); color: var(--green); }
+.badge.overpriced { background: rgba(239,68,68,0.15); color: var(--red); }
+.badge.fair { background: rgba(136,136,160,0.1); color: var(--text-muted); }
+.diff-pct { font-size: 20px; font-weight: 700; margin-top: 2px; }
+.diff-pct.negative { color: var(--green); }
+.diff-pct.positive { color: var(--red); }
+
+.listing-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+}
+.land-bar {
+  height: 6px;
+  background: var(--surface2);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.land-bar-fill {
+  height: 100%;
+  background: var(--amber);
+  border-radius: 3px;
+  transition: width 0.3s;
+}
+.breakdown-labels { display: flex; justify-content: space-between; color: var(--text-muted); }
+
+/* ── Detail Modal ───────────────────────────── */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(4px);
+  z-index: 100;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 40px 20px;
+  overflow-y: auto;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  max-width: 720px;
+  width: 100%;
+  padding: 32px;
+  position: relative;
+}
+.modal-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 24px;
+  cursor: pointer;
+}
+.modal h2 { font-size: 20px; font-weight: 600; }
+.modal .address-meta { color: var(--text-muted); font-size: 14px; margin-top: 4px; }
+
+.valuation-hero {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin: 24px 0;
+  padding: 20px;
+  background: var(--bg);
+  border-radius: var(--radius);
+}
+.val-col h4 { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.val-col .big-num { font-size: 28px; font-weight: 700; margin-top: 4px; }
+
+.reasoning-box {
+  padding: 16px;
+  background: var(--bg);
+  border-radius: var(--radius);
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--text-muted);
+  margin: 16px 0;
+}
+
+.comps-section h3 { font-size: 14px; margin: 20px 0 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.comp-row {
+  display: grid;
+  grid-template-columns: 1fr 100px 80px 80px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.comp-row:last-child { border-bottom: none; }
+.comp-row span:not(:first-child) { text-align: right; }
+.comp-header { color: var(--text-muted); font-size: 11px; text-transform: uppercase; }
+
+.modal-actions {
+  margin-top: 20px;
+  display: flex;
+  gap: 12px;
+}
+.btn {
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  transition: all 0.2s;
+}
+.btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+.btn-primary:hover { opacity: 0.9; }
+.btn-ghost { background: transparent; color: var(--text); }
+.btn-ghost:hover { background: var(--surface2); }
+
+/* ── Loading ────────────────────────────────── */
+.loading {
+  text-align: center;
+  padding: 80px 20px;
+  color: var(--text-muted);
+}
+.loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto 16px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Responsive ─────────────────────────────── */
+@media (max-width: 768px) {
+  .listing-card { grid-template-columns: 1fr; gap: 12px; }
+  .listing-prices, .listing-assessment, .listing-breakdown { text-align: left; }
+  .sort-pills { margin-left: 0; width: 100%; }
+  .valuation-hero { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="container">
+    <h1>Malibu Agent</h1>
+    <p>Fair market valuation for Malibu's $10M+ luxury market</p>
+  </div>
+</header>
+
+<div class="container">
+  <div class="filters">
+    <div class="filter-group">
+      <span class="filter-label">Neighborhood</span>
+      <select id="filter-hood">
+        <option value="">All Neighborhoods</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <span class="filter-label">Assessment</span>
+      <select id="filter-assessment">
+        <option value="">All</option>
+        <option value="underpriced">Underpriced</option>
+        <option value="fair">Fair Value</option>
+        <option value="overpriced">Overpriced</option>
+      </select>
+    </div>
+    <div class="sort-pills">
+      <button class="sort-pill active" data-sort="price_diff_pct">Best Value</button>
+      <button class="sort-pill" data-sort="price">Price</button>
+      <button class="sort-pill" data-sort="dom">Newest</button>
+    </div>
+  </div>
+
+  <div class="stats-bar" id="stats-bar"></div>
+  <div class="listings" id="listings">
+    <div class="loading">
+      <div class="loading-spinner"></div>
+      Running valuations on all active listings...
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal" id="modal-content"></div>
+</div>
+
+<script>
+let allListings = [];
+let currentSort = 'price_diff_pct';
+
+async function init() {
+  const [listingsRes, hoodsRes] = await Promise.all([
+    fetch('/api/listings?sort=price_diff_pct'),
+    fetch('/api/neighborhoods')
+  ]);
+  const listingsData = await listingsRes.json();
+  const hoodsData = await hoodsRes.json();
+
+  allListings = listingsData.listings;
+
+  // Populate neighborhood filter
+  const select = document.getElementById('filter-hood');
+  hoodsData.neighborhoods.forEach(h => {
+    if (h.active_count > 0) {
+      const opt = document.createElement('option');
+      opt.value = h.name;
+      opt.textContent = `${h.name} (${h.active_count})`;
+      select.appendChild(opt);
+    }
+  });
+
+  renderStats(allListings);
+  renderListings(allListings);
+}
+
+function fmtPrice(p) {
+  if (!p) return 'N/A';
+  if (p >= 1e6) return '$' + (p / 1e6).toFixed(1) + 'M';
+  return '$' + p.toLocaleString();
+}
+
+function fmtNum(n) {
+  return n ? n.toLocaleString() : 'N/A';
+}
+
+function hoodColor(name) {
+  const colors = {
+    'Malibu Colony': '#3B82F6', 'Carbon Beach': '#F59E0B',
+    'Malibu Road': '#10B981', 'Serra Retreat': '#8B5CF6',
+    'Malibu Cove Colony': '#EC4899', 'Escondido Beach': '#06B6D4',
+    'Point Dume': '#EF4444', 'Broad Beach': '#F97316',
+    'Western Malibu': '#6B7280',
+  };
+  return colors[name] || '#6B7280';
+}
+
+function renderStats(listings) {
+  const withValues = listings.filter(l => l.estimated_value);
+  const underpriced = listings.filter(l => l.price_assessment === 'underpriced').length;
+  const overpriced = listings.filter(l => l.price_assessment === 'overpriced').length;
+  const medianDiff = withValues.length
+    ? withValues.map(l => l.price_diff_pct || 0).sort((a,b) => a-b)[Math.floor(withValues.length/2)]
+    : 0;
+
+  document.getElementById('stats-bar').innerHTML = `
+    <div class="stat">
+      <div class="stat-label">Active Listings</div>
+      <div class="stat-value">${listings.length}</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Underpriced</div>
+      <div class="stat-value green">${underpriced}</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Overpriced</div>
+      <div class="stat-value red">${overpriced}</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Median vs Fair Value</div>
+      <div class="stat-value ${medianDiff < 0 ? 'green' : medianDiff > 0 ? 'red' : ''}">${medianDiff > 0 ? '+' : ''}${medianDiff.toFixed(0)}%</div>
+    </div>
+  `;
+}
+
+function renderListings(listings) {
+  const container = document.getElementById('listings');
+  if (!listings.length) {
+    container.innerHTML = '<div class="loading">No listings match your filters.</div>';
+    return;
+  }
+
+  container.innerHTML = listings.map(l => {
+    const diffClass = (l.price_diff_pct || 0) < 0 ? 'negative' : 'positive';
+    const assessClass = l.price_assessment || 'fair';
+    const landPct = l.value_breakdown?.land_pct || 60;
+    const color = hoodColor(l.neighborhood);
+
+    const tags = [];
+    if (l.ocean_facing === true) tags.push('<span class="tag tag-ocean">Ocean-Facing</span>');
+    if (l.ocean_facing === false) tags.push('<span class="tag tag-mtn">Mountain Side</span>');
+    if (l.is_land_parcel) tags.push('<span class="tag tag-land">Land Only</span>');
+    if (l.confidence === 'low') tags.push('<span class="tag tag-low">Low Confidence</span>');
+
+    return `
+      <div class="listing-card" onclick="showDetail('${encodeURIComponent(l.address)}')">
+        <div class="listing-info">
+          <h3>${l.address || 'Unknown'}</h3>
+          <div class="meta">${l.beds || '?'} bd / ${l.baths || '?'} ba · ${fmtNum(l.sqft)} sqft · Built ${l.year_built || '?'} · ${l.dom || '?'} DOM</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+            <span class="listing-hood" style="background:${color}20;color:${color}">${l.neighborhood}</span>
+            ${tags.join('')}
+          </div>
+        </div>
+        <div class="listing-prices">
+          <div class="listed-price">${fmtPrice(l.listed_price)}</div>
+          <div class="est-value">Fair value: ${fmtPrice(l.estimated_value)}</div>
+        </div>
+        <div class="listing-assessment">
+          <div class="badge ${assessClass}">${assessClass}</div>
+          <div class="diff-pct ${diffClass}">${l.price_diff_pct != null ? (l.price_diff_pct > 0 ? '+' : '') + l.price_diff_pct.toFixed(0) + '%' : '—'}</div>
+        </div>
+        <div class="listing-breakdown">
+          <div class="land-bar"><div class="land-bar-fill" style="width:${landPct}%"></div></div>
+          <div class="breakdown-labels">
+            <span>Land ${landPct}%</span>
+            <span>Build ${100 - landPct}%</span>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+async function showDetail(encodedAddress) {
+  const address = decodeURIComponent(encodedAddress);
+  const res = await fetch('/api/listing/' + encodeURIComponent(address));
+  if (!res.ok) return;
+  const d = await res.json();
+
+  const diffClass = (d.price_diff_pct || 0) < 0 ? 'negative' : 'positive';
+  const assessClass = d.price_assessment || 'fair';
+  const ca = d.construction_analysis || {};
+
+  const modalTags = [];
+  if (d.ocean_facing === true) modalTags.push('<span class="tag tag-ocean" style="font-size:12px;padding:3px 10px">Ocean-Facing</span>');
+  if (d.ocean_facing === false) modalTags.push('<span class="tag tag-mtn" style="font-size:12px;padding:3px 10px">Mountain Side</span>');
+  if (d.is_land_parcel) modalTags.push('<span class="tag tag-land" style="font-size:12px;padding:3px 10px">Land Parcel</span>');
+  if (d.confidence === 'low') modalTags.push('<span class="tag tag-low" style="font-size:12px;padding:3px 10px">Low Confidence</span>');
+
+  document.getElementById('modal-content').innerHTML = `
+    <button class="modal-close" onclick="closeModal()">&times;</button>
+    <h2>${d.address}</h2>
+    <div class="address-meta">
+      ${d.neighborhood} · ${d.beds || '?'} bd / ${d.baths || '?'} ba · ${fmtNum(d.sqft)} sqft · ${fmtNum(d.lot_size)} sqft lot · Built ${d.year_built || 'Unknown'}
+    </div>
+    ${modalTags.length ? '<div style="display:flex;gap:6px;margin-top:8px">' + modalTags.join('') + '</div>' : ''}
+
+    <div class="valuation-hero">
+      <div class="val-col">
+        <h4>Listed Price</h4>
+        <div class="big-num">${fmtPrice(d.listed_price)}</div>
+      </div>
+      <div class="val-col">
+        <h4>Estimated Fair Value</h4>
+        <div class="big-num" style="color:var(--accent)">${fmtPrice(d.estimated_value)}</div>
+        <span class="badge ${assessClass}" style="margin-top:8px">${assessClass} ${d.price_diff_pct != null ? '(' + (d.price_diff_pct > 0 ? '+' : '') + d.price_diff_pct.toFixed(1) + '%)' : ''}</span>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px">
+      <div class="stat">
+        <div class="stat-label">Adjusted $/sqft</div>
+        <div class="stat-value" style="font-size:18px">$${fmtNum(d.adjusted_ppsf)}</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Land Value</div>
+        <div class="stat-value" style="font-size:18px">${fmtPrice(d.value_breakdown?.land_value)} (${d.value_breakdown?.land_pct}%)</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Construction Mult.</div>
+        <div class="stat-value" style="font-size:18px">${ca.multiplier?.toFixed(2) || '—'}x</div>
+      </div>
+    </div>
+
+    <div class="reasoning-box">${d.reasoning || ''}</div>
+
+    <div class="comps-section">
+      <h3>Comparable Sales Used (${d.comp_count || 0})</h3>
+      <div class="comp-row comp-header">
+        <span>Address</span><span>Price</span><span>$/sqft</span><span>Built</span>
+      </div>
+      ${(d.comps || []).map(c => `
+        <div class="comp-row">
+          <span>${c.address}</span>
+          <span>${fmtPrice(c.price)}</span>
+          <span>$${fmtNum(c.price_per_sqft)}</span>
+          <span>${c.year_built || '?'}</span>
+        </div>
+      `).join('')}
+    </div>
+
+    <div class="modal-actions">
+      ${d.url ? `<a href="${d.url}" target="_blank" class="btn btn-primary">View on Redfin</a>` : ''}
+      <button class="btn btn-ghost" onclick="closeModal()">Close</button>
+    </div>
+  `;
+
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('open');
+}
+
+document.getElementById('modal-overlay').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeModal();
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeModal();
+});
+
+// Filters
+function applyFilters() {
+  let filtered = [...allListings];
+  const hood = document.getElementById('filter-hood').value;
+  const assessment = document.getElementById('filter-assessment').value;
+
+  if (hood) filtered = filtered.filter(l => l.neighborhood === hood);
+  if (assessment) filtered = filtered.filter(l => l.price_assessment === assessment);
+
+  // Re-sort
+  filtered.sort((a, b) => {
+    const av = a[currentSort] ?? 0, bv = b[currentSort] ?? 0;
+    return currentSort === 'price_diff_pct' ? av - bv : bv - av;
+  });
+
+  renderStats(filtered);
+  renderListings(filtered);
+}
+
+document.getElementById('filter-hood').addEventListener('change', applyFilters);
+document.getElementById('filter-assessment').addEventListener('change', applyFilters);
+
+document.querySelectorAll('.sort-pill').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.sort-pill').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentSort = btn.dataset.sort;
+    applyFilters();
+  });
+});
+
+init();
+</script>
+</body>
+</html>
