@@ -13,6 +13,7 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 import pandas as pd
+import json
 import os
 from data_loader import load_data, NEIGHBORHOODS
 from valuation import estimate_fair_value, valuate_all_active
@@ -26,14 +27,48 @@ app = FastAPI(title="Malibu Agent", version="1.0.0")
 # ── Load data once at startup ────────────────────────────────────────────────
 active, sold = load_data()
 
+# ── Load scraped listing details ─────────────────────────────────────────────
+_LISTING_DETAILS_FILE = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "data", "listing_details.json"
+)
+_scraped_by_url = {}
+if os.path.exists(_LISTING_DETAILS_FILE):
+    with open(_LISTING_DETAILS_FILE) as f:
+        _scraped_by_url = json.load(f)
+
+# Build URL → scraped data lookup and enrich active DataFrame with keywords
+def _enrich_with_scraped(df):
+    """Add scraped keywords to DataFrame so valuation can use them."""
+    kw_col = []
+    for _, row in df.iterrows():
+        url = row.get("url", "")
+        scraped = _scraped_by_url.get(url, {})
+        kw_col.append(scraped.get("keywords", []))
+    df["scraped_keywords"] = kw_col
+    return df
+
+active = _enrich_with_scraped(active)
+
 # Pre-compute valuations for all active listings
 _valuations_cache = None
+
+
+def _merge_scraped(val_dict, url):
+    """Attach scraped description, images, and keywords to a valuation result."""
+    scraped = _scraped_by_url.get(url, {})
+    val_dict["description"] = scraped.get("description")
+    val_dict["images"] = scraped.get("images", [])[:6]  # First 6 for gallery
+    val_dict["scraped_keywords"] = scraped.get("keywords", [])
+    return val_dict
 
 
 def _get_valuations():
     global _valuations_cache
     if _valuations_cache is None:
-        _valuations_cache = valuate_all_active(active, sold)
+        raw = valuate_all_active(active, sold)
+        for r in raw:
+            _merge_scraped(r, r.get("url", ""))
+        _valuations_cache = raw
     return _valuations_cache
 
 
@@ -97,6 +132,7 @@ def get_listing(address: str):
     val["url"] = row.get("url", "")
     val["lat"] = float(row["lat"]) if pd.notna(row.get("lat")) else None
     val["lng"] = float(row["lng"]) if pd.notna(row.get("lng")) else None
+    _merge_scraped(val, val["url"])
     return val
 
 
@@ -125,6 +161,54 @@ def get_neighborhoods():
 def get_valuation(address: str):
     """Deep valuation for a specific property."""
     return get_listing(address)
+
+
+@app.get("/api/neighborhood-stats")
+def get_neighborhood_stats():
+    """Rich neighborhood comparison with valuation-based stats."""
+    results = _get_valuations()
+    overview = market_overview(active, sold)
+    stats = []
+    for name, info in NEIGHBORHOODS.items():
+        hood_listings = [r for r in results if r["neighborhood"] == name]
+        if not hood_listings:
+            continue
+        prices = [r["listed_price"] for r in hood_listings if r.get("listed_price")]
+        values = [r["estimated_value"] for r in hood_listings if r.get("estimated_value")]
+        ppsf = [r["adjusted_ppsf"] for r in hood_listings if r.get("adjusted_ppsf")]
+        doms = [r["dom"] for r in hood_listings if r.get("dom")]
+
+        med_price = sorted(prices)[len(prices)//2] if prices else None
+        med_value = sorted(values)[len(values)//2] if values else None
+        med_ppsf = sorted(ppsf)[len(ppsf)//2] if ppsf else None
+        avg_dom = round(sum(doms) / len(doms)) if doms else None
+
+        # Best deal: most underpriced listing
+        underpriced = [r for r in hood_listings if r.get("price_diff_pct") is not None]
+        underpriced.sort(key=lambda r: r["price_diff_pct"])
+        best_deal = None
+        if underpriced and underpriced[0]["price_diff_pct"] < 0:
+            bd = underpriced[0]
+            best_deal = {
+                "address": bd["address"],
+                "listed_price": bd["listed_price"],
+                "estimated_value": bd["estimated_value"],
+                "price_diff_pct": bd["price_diff_pct"],
+            }
+
+        stats.append({
+            "name": name,
+            "description": info["description"],
+            "color": neighborhood_color(name),
+            "active_count": len(hood_listings),
+            "median_list_price": med_price,
+            "median_fair_value": med_value,
+            "median_ppsf": med_ppsf,
+            "avg_dom": avg_dom,
+            "best_deal": best_deal,
+        })
+    stats.sort(key=lambda s: s.get("median_list_price") or 0, reverse=True)
+    return {"neighborhoods": stats}
 
 
 @app.get("/api/deals")
