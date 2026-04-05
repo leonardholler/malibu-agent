@@ -21,11 +21,14 @@ NEIGHBORHOODS = {
         "lng_range": (-118.705, -118.680),
     },
     "Carbon Beach": {
-        "streets": ["carbon beach", "carbon mesa", "villa costera", "rambla vis",
-                     "rambla pacifico", "harbor vista"],
+        # Carbon Beach is ONLY PCH addresses between ~21000-22700.
+        # Streets going up the canyon behind PCH (Mariposa De Oro, Harbor Vista,
+        # Rambla Vista, Carbon Mesa, Villa Costera) are NOT Carbon Beach —
+        # they're hillside/canyon with no beach access or ocean frontage.
+        "streets": [],  # PCH classification handled by address number in Pass 3
         "description": "Billionaire's Beach. Ultra-premium beachfront east of the Colony.",
-        "lat_range": (34.039, 34.046),
-        "lng_range": (-118.695, -118.640),
+        "lat_range": (34.035, 34.042),  # Tighter: only the PCH strip, not canyon above
+        "lng_range": (-118.670, -118.630),
     },
     "Malibu Road": {
         "streets": ["malibu rd"],
@@ -35,8 +38,10 @@ NEIGHBORHOODS = {
     },
     "Serra Retreat": {
         "streets": ["serra rd", "sweetwater mesa", "retreat ct", "cross creek",
-                     "puerco canyon"],
-        "description": "Gated hillside community above central Malibu. Privacy, no beach.",
+                     "puerco canyon", "carbon mesa", "villa costera", "rambla vis",
+                     "rambla pacifico", "harbor vista", "mariposa de oro",
+                     "carbon beach ter"],
+        "description": "Hillside/canyon above central Malibu. Includes canyon streets behind Carbon Beach. Privacy, no beach.",
         "lat_range": (34.040, 34.050),
         "lng_range": (-118.690, -118.670),
     },
@@ -271,11 +276,12 @@ def normalize(df):
     _corrections = {
         "32300 Pacific Coast Hwy": {
             # Redfin shows sqft=10 — actual property is 11,000 sqft Cape Cod estate
-            # on ~3 acres (130,680 sqft lot), 8 bed / 9.5 bath
+            # on ~3 acres (130,680 sqft lot), 8 bed / 9.5 bath, built ~2005
             "sqft": 11000,
             "lot_size": 130680,
             "beds": 8,
             "baths": 9.5,
+            "year_built": 2005,
         },
         "31460 Broad Beach Rd": {
             # sqft=1 in data — this is a land parcel, not a house
