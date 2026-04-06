@@ -134,14 +134,21 @@ def _scraped_beach_adjustment(neighborhood, keywords):
     beachfront_hoods = {"Malibu Colony", "Carbon Beach", "Malibu Road",
                         "Broad Beach", "Malibu Cove Colony", "Escondido Beach"}
 
-    if neighborhood not in beachfront_hoods:
+    has_beachfront = "oceanfront" in keywords or "beachfront" in keywords
+    has_no_view = "no_view" in keywords and "ocean_view" not in keywords
+
+    if neighborhood in beachfront_hoods:
+        if has_no_view:
+            return 0.88
+        if has_beachfront:
+            return 1.04
         return 1.0
 
-    if "no_view" in keywords and "ocean_view" not in keywords:
-        return 0.88
-
-    if "oceanfront" in keywords or "beachfront" in keywords:
-        return 1.04
+    # Non-premium neighborhoods: beachfront keyword means the property
+    # is an exception to the neighborhood's typical non-beach character.
+    # Larger boost since the base beach_multiplier is lower (0.88-1.0).
+    if has_beachfront:
+        return 1.12
 
     return 1.0
 
@@ -265,6 +272,10 @@ def estimate_fair_value(target, active, sold):
         }
 
     target_mult = _construction_multiplier(t_year)
+    # Renovated properties: bump construction multiplier toward 1.0
+    # (a renovated 1963 house doesn't deserve the full vintage penalty)
+    if "renovated" in t_keywords and target_mult < 1.0:
+        target_mult = target_mult + (1.0 - target_mult) * 0.5
     beach_mult = _beach_proximity_multiplier(hood)
     scraped_adj = _scraped_beach_adjustment(hood, t_keywords)
     beach_mult *= scraped_adj
@@ -333,7 +344,7 @@ def estimate_fair_value(target, active, sold):
     ultra_luxury_applied = False
     if pd.notna(t_price) and t_price > 0 and estimated_value > 0:
         price_to_comp = t_price / estimated_value
-        if price_to_comp > 2.0:
+        if price_to_comp > 1.8:
             # Damped adjustment: pull toward listed price but don't trust it fully
             scarcity_mult = min(price_to_comp ** 0.40, 2.5)
             estimated_value = estimated_value * scarcity_mult
@@ -360,7 +371,7 @@ def estimate_fair_value(target, active, sold):
     # can diverge from listed price based on confidence level.
     if pd.notna(t_price) and t_price > 0 and estimated_value > 0:
         divergence = abs(estimated_value - t_price) / t_price
-        max_divergence = {"high": 0.40, "medium": 0.35, "low": 0.30}
+        max_divergence = {"high": 0.50, "medium": 0.45, "low": 0.40}
         cap = max_divergence.get(confidence, 0.50)
         if divergence > cap:
             if estimated_value > t_price:
